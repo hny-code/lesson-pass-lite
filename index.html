@@ -755,7 +755,11 @@ async function renderOpAdmins(){
   try{
     const snap = await db.collection(COL_ADMINS).orderBy('createdAt','desc').get();
     if(snap.empty){ el.innerHTML='<p class="sub">管理者が登録されていません</p>'; return; }
-    let html = '<div class="section-title">管理者一覧</div>';
+    // CSVデータを保持
+    window._opAdminsData = snap.docs.map(d=>d.data());
+    let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin:1.5rem 0 0.75rem">';
+    html += '<div class="section-title" style="margin:0">管理者一覧</div>';
+    html += '<button class="btn btn-sm" onclick="exportOpAdminsCsv()">CSVで書き出し</button></div>';
     html += '<table class="op-table"><thead><tr><th>施設名</th><th>施設コード</th><th>ユーザー名</th><th>氏名</th><th>メール</th><th>登録日</th></tr></thead><tbody>';
     snap.docs.forEach(d=>{
       const a = d.data();
@@ -768,6 +772,17 @@ async function renderOpAdmins(){
   }
 }
 
+function exportOpAdminsCsv(){
+  const data = window._opAdminsData || [];
+  if(!data.length){ alert('データがありません'); return; }
+  const headers = ['施設名','施設コード','ユーザー名','氏名','メールアドレス','登録日'];
+  const rows = data.map(a=>[
+    a.facility||'', a.facilityCode||'', a.username||'',
+    a.name||'', a.email||'', dateOnly(a.createdAt)
+  ]);
+  downloadCsv(headers, rows, 'admins');
+}
+
 async function renderOpUsers(){
   const el = document.getElementById('op-users');
   el.innerHTML = loadingHTML();
@@ -777,21 +792,40 @@ async function renderOpUsers(){
       db.collection(COL_TICKETS).where('deleted','==','').orderBy('issued','desc').get()
     ]);
     const admMap = {};
-    admSnap.docs.forEach(d=>{ admMap[d.id] = d.data().name||d.data().username||d.id; });
+    admSnap.docs.forEach(d=>{ admMap[d.id] = d.data(); });
     if(tickSnap.empty){ el.innerHTML='<p class="sub">利用者が登録されていません</p>'; return; }
-    let html = '<div class="section-title">利用者一覧</div>';
-    html += '<table class="op-table"><thead><tr><th>会員番号</th><th>氏名</th><th>残回数</th><th>期限</th><th>管理者</th></tr></thead><tbody>';
+    // CSVデータを保持
+    window._opUsersData = tickSnap.docs.map(d=>({...d.data(), adminData: admMap[d.data().adminId]||{}}));
+    let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin:1.5rem 0 0.75rem">';
+    html += '<div class="section-title" style="margin:0">利用者一覧</div>';
+    html += '<button class="btn btn-sm" onclick="exportOpUsersCsv()">CSVで書き出し</button></div>';
+    html += '<table class="op-table"><thead><tr><th>施設名</th><th>会員番号</th><th>氏名</th><th>回数</th><th>残回数</th><th>期限</th><th>発行日</th></tr></thead><tbody>';
     tickSnap.docs.forEach(d=>{
       const t      = d.data();
       const remain = Number(t.total)-Number(t.used);
-      const st     = statusOf(t);
-      html += `<tr><td>${padMember(t.member)}</td><td>${t.name}</td><td>${remain}/${t.total}</td><td>${dateOnly(t.expiry)}</td><td>${admMap[t.adminId]||'-'}</td></tr>`;
+      const adm    = admMap[t.adminId] || {};
+      html += `<tr><td>${adm.facility||'-'}</td><td>${padMember(t.member)}</td><td>${t.name}</td><td>${t.total}</td><td>${remain}</td><td>${dateOnly(t.expiry)}</td><td>${dateOnly(t.issued)}</td></tr>`;
     });
     html += '</tbody></table>';
     el.innerHTML = html;
   }catch(e){
     el.innerHTML = '<p class="sub">通信エラーが発生しました。</p>';
   }
+}
+
+function exportOpUsersCsv(){
+  const data = window._opUsersData || [];
+  if(!data.length){ alert('データがありません'); return; }
+  const headers = ['施設名','施設コード','会員番号','氏名','回数','残回数','有効期限','発行日'];
+  const rows = data.map(t=>{
+    const remain = Number(t.total)-Number(t.used);
+    return [
+      t.adminData.facility||'', t.adminData.facilityCode||'',
+      padMember(t.member), t.name, t.total, remain,
+      dateOnly(t.expiry), dateOnly(t.issued)
+    ];
+  });
+  downloadCsv(headers, rows, 'users');
 }
 
 async function renderOpAdsForm(){
@@ -894,6 +928,19 @@ async function copyModalText(){
     btn.style.color       = '#1D9E75';
     btn.style.borderColor = '#1D9E75';
   },2000);
+}
+function downloadCsv(headers, rows, prefix){
+  const csv = [headers, ...rows]
+    .map(r => r.map(v => '"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(','))
+    .join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const now  = new Date();
+  a.href     = url;
+  a.download = `lp-${prefix}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 function togglePw(inputId, btn){
   const input = document.getElementById(inputId);
