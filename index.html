@@ -114,7 +114,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 </div>
 
 <!-- ========== トップ（役割選択） ========== -->
-<div id="s-top" class="screen active">
+<div id="s-top" class="screen">
   <div class="logo-block">
     <div class="logo-main">Lesson Pass Lite</div>
     <div class="logo-divider"></div>
@@ -471,28 +471,35 @@ async function loginAdmin(){
 }
 
 // Auth状態監視
+let authReady = false;
 auth.onAuthStateChanged(async user=>{
   if(user){
     currentAdminUid = user.uid;
-    const doc = await db.collection(COL_ADMINS).doc(user.uid).get();
-    const adminData = doc.exists ? doc.data() : {};
-    const facility = adminData.facility || 'Lesson Pass Lite';
-    const adminName = adminData.name || '';
-    document.getElementById('admin-facility-name').textContent = facility;
-    document.getElementById('admin-label').textContent = adminName ? adminName+'　管理画面' : '管理画面';
-    showDeleted = false;
-    adminTab('list');
-    showScreen('s-admin');
-  } else {
-    currentAdminUid = null;
-    const active = document.querySelector('.screen.active');
-    const activeId = active ? active.id : '';
-    // 管理者画面表示中だった場合のみトップに戻す
-    // 利用者・運営者画面はそのまま
-    if(!activeId || activeId === 's-admin' || activeId === 's-admin-login' || activeId === 's-admin-register' || activeId === 's-admin-reset'){
+    try{
+      const doc = await db.collection(COL_ADMINS).doc(user.uid).get();
+      const adminData = doc.exists ? doc.data() : {};
+      const facility = adminData.facility || 'Lesson Pass Lite';
+      const adminName = adminData.name || '';
+      document.getElementById('admin-facility-name').textContent = facility;
+      document.getElementById('admin-label').textContent = adminName ? adminName+'　管理画面' : '管理画面';
+      showDeleted = false;
+      adminTab('list');
+      showScreen('s-admin');
+    }catch(e){
       showScreen('s-top');
     }
+  } else {
+    currentAdminUid = null;
+    if(!authReady){
+      // 初回のみ：?opならop-login、それ以外はトップ
+      if(location.search.includes('op')){
+        showScreen('s-op-login');
+      } else {
+        showScreen('s-top');
+      }
+    }
   }
+  authReady = true;
 });
 
 function logoutAdmin(){
@@ -1017,15 +1024,7 @@ function toJSTString(date){
 
 // ===== 起動時チェック =====
 window.addEventListener('load', function(){
-  // 運営者セッション復元
-  if(localStorage.getItem(OP_SESSION)==='true'){
-    // トップのまま（自動遷移はしない。手動ログインを要求）
-    localStorage.removeItem(OP_SESSION);
-  }
-  // 運営者画面アクセス用：URLに ?op をつけるとログイン画面へ
-  if(location.search.includes('op')){
-    showScreen('s-op-login');
-  }
+  // 広告・その他の初期化はloadAdsで実施済み
 });
 
 // Enterキー対応
