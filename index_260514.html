@@ -174,26 +174,8 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
     <div class="pw-wrap"><input type="password" id="admin-login-pw"><button type="button" class="pw-toggle" onclick="togglePw('admin-login-pw',this)"><svg viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div style="text-align:right"><button class="btn btn-primary" onclick="loginAdmin()">ログイン</button></div>
     <div id="admin-login-err" class="err"></div>
-    <button class="link-btn" onclick="showScreen('s-admin-reset')">パスワードをお忘れの方</button>
   </div>
 </div>
-
-<!-- ========== 管理者 パスワードリセット ========== -->
-<div id="s-admin-reset" class="screen">
-  <div class="top-bar">
-    <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
-      <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">パスワードリセット</div>
-    </div>
-    <button class="btn btn-sm" onclick="showScreen('s-admin-login')">戻る</button>
-  </div>
-  <div class="card">
-    <p class="sub" style="margin-bottom:14px">登録したメールアドレスにリセット用のリンクを送信します。</p>
-    <label>メールアドレス</label>
-    <input type="email" id="reset-email" placeholder="例：info@example.com">
-    <div style="text-align:right"><button class="btn btn-primary" onclick="sendResetEmail()">送信する</button></div>
-    <div id="reset-msg" style="font-size:13px;margin-top:6px;min-height:18px"></div>
-  </div>
 
 <!-- ========== 管理者 画面 ========== -->
 <div id="s-admin" class="screen">
@@ -404,7 +386,7 @@ window.addEventListener('load', function(){
 });
 
 // ===== 画面切替 =====
-const ALL_SCREENS = ['s-top','s-admin-register','s-admin-login','s-admin-reset','s-admin','s-user-login','s-user','s-op-login','s-op'];
+const ALL_SCREENS = ['s-top','s-admin-register','s-admin-login','s-admin','s-user-login','s-user','s-op-login','s-op'];
 function showScreen(id){
   ALL_SCREENS.forEach(s=>document.getElementById(s).classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -501,25 +483,6 @@ function logoutAdmin(){
   auth.signOut();
   currentAdminUid = null;
   showScreen('s-top');
-}
-
-// ===== パスワードリセット =====
-async function sendResetEmail(){
-  const email = document.getElementById('reset-email').value.trim();
-  const msg   = document.getElementById('reset-msg');
-  if(!email){ msg.textContent='メールアドレスを入力してください'; msg.style.color='#A32D2D'; return; }
-  msg.textContent = '送信中...'; msg.style.color='#888';
-  try{
-    auth.languageCode = 'ja';
-    await auth.sendPasswordResetEmail(email);
-    msg.textContent = 'リセット用メールを送信しました。メールをご確認ください。';
-    msg.style.color = '#0F6E56';
-    document.getElementById('reset-email').value = '';
-  }catch(e){
-    if(e.code==='auth/user-not-found') msg.textContent='このメールアドレスは登録されていません';
-    else msg.textContent = 'エラーが発生しました';
-    msg.style.color = '#A32D2D';
-  }
 }
 
 // ===== 管理者 タブ =====
