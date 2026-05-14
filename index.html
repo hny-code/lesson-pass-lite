@@ -32,7 +32,7 @@ body{min-height:100%;background:#f5f5f3;font-family:-apple-system,BlinkMacSystem
 .btn-block.primary:hover{background:#0F6E56}
 .pw-wrap{position:relative;margin-bottom:14px}
 .pw-wrap input{margin-bottom:0;padding-right:42px}
-.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#aaa;line-height:1;font-size:18px}
+.pw-toggle{position:absolute;right:10px;top:0;bottom:0;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;padding:4px;color:#aaa;line-height:1}
 .pw-toggle:hover{color:#555}
 .tab-bar{display:flex;gap:4px;margin-bottom:1.25rem}
 .tab{flex:1;padding:7px 0;border-radius:8px;border:0.5px solid #ddd;font-size:13px;cursor:pointer;background:transparent;color:#666;text-align:center}
@@ -133,7 +133,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 <div id="s-admin-register" class="screen">
   <div class="top-bar">
     <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass</div>
+      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
       <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">管理者登録</div>
     </div>
     <button class="btn btn-sm" onclick="showScreen('s-top')">戻る</button>
@@ -160,7 +160,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 <div id="s-admin-login" class="screen">
   <div class="top-bar">
     <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass</div>
+      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
       <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">管理者ログイン</div>
     </div>
     <button class="btn btn-sm" onclick="showScreen('s-top')">戻る</button>
@@ -221,12 +221,14 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 <div id="s-user-login" class="screen">
   <div class="top-bar">
     <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass</div>
+      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
       <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">利用者ログイン</div>
     </div>
     <button class="btn btn-sm" onclick="showScreen('s-top')">戻る</button>
   </div>
   <div class="card">
+    <label>お名前</label>
+    <input type="text" id="login-name" placeholder="例：山田 太郎">
     <label>会員番号</label>
     <input type="text" id="login-id" placeholder="例：0001" inputmode="numeric">
     <div style="text-align:right"><button class="btn btn-primary" onclick="loginUser()">確認する</button></div>
@@ -251,7 +253,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 <div id="s-op-login" class="screen">
   <div class="top-bar">
     <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass</div>
+      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
       <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">運営者ログイン</div>
     </div>
     <button class="btn btn-sm" onclick="showScreen('s-top')">戻る</button>
@@ -268,7 +270,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 <div id="s-op" class="screen">
   <div class="top-bar">
     <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass</div>
+      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
       <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">運営者画面</div>
     </div>
     <button class="btn btn-sm" onclick="logoutOperator()">ログアウト</button>
@@ -545,7 +547,7 @@ async function issueTicket(){
     errEl.textContent = '';
 
     const url      = location.href;
-    const copyText = `URL：${url}\n会員番号：${member}`;
+    const copyText = `URL：${url}\nお名前：${name}\n会員番号：${member}`;
     showModal('発行が完了しました', '利用者に以下をお知らせください：', copyText, ()=>adminTab('list'));
   }catch(e){
     errEl.textContent = '通信エラーが発生しました。';
@@ -640,7 +642,9 @@ async function deleteTicket(docId){
 // ===== 利用者ログイン =====
 async function loginUser(){
   const id    = document.getElementById('login-id').value.trim();
+  const name  = document.getElementById('login-name').value.trim();
   const errEl = document.getElementById('login-err');
+  if(!name){ errEl.textContent='お名前を入力してください'; return; }
   if(!id){ errEl.textContent='会員番号を入力してください'; return; }
   const el = document.getElementById('user-cards');
   showScreen('s-user');
@@ -652,27 +656,29 @@ async function loginUser(){
       .get();
     const all     = snap.docs.map(d=>({docId:d.id,...d.data()}));
     const tickets = all.filter(t=>!isDeleted(t));
-    if(!tickets.length){
+    // 名前と会員番号の両方が一致するか確認
+    const matched = tickets.filter(t=>t.name === name);
+    if(!tickets.length || !matched.length){
       showScreen('s-user-login');
-      errEl.textContent = '該当する回数券が見つかりません';
+      errEl.textContent = 'お名前または会員番号が正しくありません';
       return;
     }
     // 施設名を取得して表示
     try{
-      const adminDoc = await db.collection(COL_ADMINS).doc(tickets[0].adminId).get();
+      const adminDoc = await db.collection(COL_ADMINS).doc(matched[0].adminId).get();
       const facility = adminDoc.exists ? (adminDoc.data().facility || 'Lesson Pass Lite') : 'Lesson Pass Lite';
       document.getElementById('user-facility-name').textContent = facility;
     }catch(e){ /* 取得失敗時はデフォルト表示のまま */ }
-    const name = tickets[0].name;
+    const userName = matched[0].name;
     document.getElementById('user-member-block').innerHTML = `
       <div class="member-block">
-        <div class="member-icon">${initials(name)}</div>
+        <div class="member-icon">${initials(userName)}</div>
         <div>
-          <div class="member-name">${name}</div>
+          <div class="member-name">${userName}</div>
           <div class="member-no">会員番号：${padMember(id)}</div>
         </div>
       </div>`;
-    renderUserCards(tickets);
+    renderUserCards(matched);
   }catch(e){
     el.innerHTML = '<p class="sub">通信エラーが発生しました。再度お試しください。</p>';
   }
