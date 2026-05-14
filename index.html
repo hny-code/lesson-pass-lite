@@ -485,9 +485,11 @@ auth.onAuthStateChanged(async user=>{
     showScreen('s-admin');
   } else {
     currentAdminUid = null;
-    // 運営者セッション・?opの場合はトップに戻さない
-    const cur = document.querySelector('.screen.active');
-    if(!cur || cur.id === 's-admin'){
+    const active = document.querySelector('.screen.active');
+    const activeId = active ? active.id : '';
+    // 管理者画面表示中だった場合のみトップに戻す
+    // 利用者・運営者画面はそのまま
+    if(!activeId || activeId === 's-admin' || activeId === 's-admin-login' || activeId === 's-admin-register' || activeId === 's-admin-reset'){
       showScreen('s-top');
     }
   }
