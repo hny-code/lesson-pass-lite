@@ -141,6 +141,8 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
   <div class="card">
     <label>施設名</label>
     <input type="text" id="reg-facility" placeholder="例：HIRO BJJ SENDAGI">
+    <label>施設コード <span style="font-size:11px;color:#aaa">（半角英数字・利用者ログインに使用）</span></label>
+    <input type="text" id="reg-facility-code" placeholder="例：sendagi" autocomplete="off">
     <label>ユーザー名 <span style="font-size:11px;color:#aaa">（半角英数字・ログインIDになります）</span></label>
     <input type="text" id="reg-username" placeholder="例：yamada_bjj" autocomplete="off">
     <label>氏名</label>
@@ -227,6 +229,8 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
     <button class="btn btn-sm" onclick="showScreen('s-top')">戻る</button>
   </div>
   <div class="card">
+    <label>施設コード</label>
+    <input type="text" id="login-facility-code" placeholder="例：sendagi" autocomplete="off">
     <label>お名前</label>
     <input type="text" id="login-name" placeholder="例：山田 太郎">
     <label>会員番号</label>
@@ -391,19 +395,25 @@ function showScreen(id){
 
 // ===== 管理者 新規登録 =====
 async function registerAdmin(){
-  const facility = document.getElementById('reg-facility').value.trim();
-  const username = document.getElementById('reg-username').value.trim();
-  const name     = document.getElementById('reg-name').value.trim();
-  const email    = document.getElementById('reg-email').value.trim();
-  const pw1      = document.getElementById('reg-pw1').value;
-  const pw2      = document.getElementById('reg-pw2').value;
-  const errEl    = document.getElementById('reg-err');
-  errEl.textContent = '';
+  const facility     = document.getElementById('reg-facility').value.trim();
+  const facilityCode = document.getElementById('reg-facility-code').value.trim().toLowerCase();
+  const username     = document.getElementById('reg-username').value.trim();
+  const name         = document.getElementById('reg-name').value.trim();
+  const email        = document.getElementById('reg-email').value.trim();
+  const pw1          = document.getElementById('reg-pw1').value;
+  const pw2          = document.getElementById('reg-pw2').value;
+  const errEl        = document.getElementById('reg-err');
+  errEl.textContent  = '';
 
-  if(!facility||!username||!name||!email||!pw1||!pw2){ errEl.textContent='すべての項目を入力してください'; return; }
+  if(!facility||!facilityCode||!username||!name||!email||!pw1||!pw2){ errEl.textContent='すべての項目を入力してください'; return; }
+  if(!/^[a-zA-Z0-9_]+$/.test(facilityCode)){ errEl.textContent='施設コードは半角英数字・アンダースコアのみ使用できます'; return; }
   if(!/^[a-zA-Z0-9_]+$/.test(username)){ errEl.textContent='ユーザー名は半角英数字・アンダースコアのみ使用できます'; return; }
   if(pw1!==pw2){ errEl.textContent='パスワードが一致しません'; return; }
   if(pw1.length<6){ errEl.textContent='パスワードは6文字以上で設定してください'; return; }
+
+  // 施設コード重複チェック
+  const fcSnap = await db.collection(COL_ADMINS).where('facilityCode','==',facilityCode).get();
+  if(!fcSnap.empty){ errEl.textContent='この施設コードはすでに使用されています'; return; }
 
   // ユーザー名重複チェック
   const snap = await db.collection(COL_ADMINS).where('username','==',username).get();
@@ -413,11 +423,11 @@ async function registerAdmin(){
   try{
     const cred = await auth.createUserWithEmailAndPassword(email, pw1);
     await db.collection(COL_ADMINS).doc(cred.user.uid).set({
-      facility, username, name, email,
+      facility, facilityCode, username, name, email,
       createdAt: toJSTString(new Date())
     });
-    alert(`登録が完了しました。\nユーザー名：${username}\nログイン画面に移動します。`);
-    ['reg-facility','reg-username','reg-name','reg-email','reg-pw1','reg-pw2'].forEach(id=>document.getElementById(id).value='');
+    alert(`登録が完了しました。\nユーザー名：${username}\n施設コード：${facilityCode}\nログイン画面に移動します。`);
+    ['reg-facility','reg-facility-code','reg-username','reg-name','reg-email','reg-pw1','reg-pw2'].forEach(id=>document.getElementById(id).value='');
     errEl.textContent = '';
     showScreen('s-admin-login');
   }catch(e){
@@ -546,8 +556,10 @@ async function issueTicket(){
     document.getElementById('new-expiry').value = '';
     errEl.textContent = '';
 
-    const url      = location.href;
-    const copyText = `URL：${url}\nお名前：${name}\n会員番号：${member}`;
+    const url          = location.href;
+    const adminDoc     = await db.collection(COL_ADMINS).doc(currentAdminUid).get();
+    const facilityCode = adminDoc.exists ? (adminDoc.data().facilityCode || '') : '';
+    const copyText     = `URL：${url}\n施設コード：${facilityCode}\nお名前：${name}\n会員番号：${member}`;
     showModal('発行が完了しました', '利用者に以下をお知らせください：', copyText, ()=>adminTab('list'));
   }catch(e){
     errEl.textContent = '通信エラーが発生しました。';
@@ -641,9 +653,11 @@ async function deleteTicket(docId){
 
 // ===== 利用者ログイン =====
 async function loginUser(){
-  const id    = document.getElementById('login-id').value.trim();
-  const name  = document.getElementById('login-name').value.trim();
-  const errEl = document.getElementById('login-err');
+  const facilityCode = document.getElementById('login-facility-code').value.trim().toLowerCase();
+  const name         = document.getElementById('login-name').value.trim();
+  const id           = document.getElementById('login-id').value.trim();
+  const errEl        = document.getElementById('login-err');
+  if(!facilityCode){ errEl.textContent='施設コードを入力してください'; return; }
   if(!name){ errEl.textContent='お名前を入力してください'; return; }
   if(!id){ errEl.textContent='会員番号を入力してください'; return; }
   const el = document.getElementById('user-cards');
@@ -651,24 +665,33 @@ async function loginUser(){
   el.innerHTML = loadingHTML();
   document.getElementById('user-member-block').innerHTML = '';
   try{
+    // 施設コードから管理者を特定
+    const adminSnap = await db.collection(COL_ADMINS)
+      .where('facilityCode','==',facilityCode).get();
+    if(adminSnap.empty){
+      showScreen('s-user-login');
+      errEl.textContent = '施設コードが正しくありません';
+      return;
+    }
+    const adminId  = adminSnap.docs[0].id;
+    const facility = adminSnap.docs[0].data().facility || 'Lesson Pass Lite';
+
+    // 会員番号＋adminIdで絞り込み
     const snap = await db.collection(COL_TICKETS)
       .where('member','==',padMember(id))
+      .where('adminId','==',adminId)
       .get();
     const all     = snap.docs.map(d=>({docId:d.id,...d.data()}));
     const tickets = all.filter(t=>!isDeleted(t));
-    // 名前と会員番号の両方が一致するか確認
     const matched = tickets.filter(t=>t.name === name);
-    if(!tickets.length || !matched.length){
+
+    if(!matched.length){
       showScreen('s-user-login');
-      errEl.textContent = 'お名前または会員番号が正しくありません';
+      errEl.textContent = '施設コード・お名前・会員番号が正しくありません';
       return;
     }
-    // 施設名を取得して表示
-    try{
-      const adminDoc = await db.collection(COL_ADMINS).doc(matched[0].adminId).get();
-      const facility = adminDoc.exists ? (adminDoc.data().facility || 'Lesson Pass Lite') : 'Lesson Pass Lite';
-      document.getElementById('user-facility-name').textContent = facility;
-    }catch(e){ /* 取得失敗時はデフォルト表示のまま */ }
+
+    document.getElementById('user-facility-name').textContent = facility;
     const userName = matched[0].name;
     document.getElementById('user-member-block').innerHTML = `
       <div class="member-block">
@@ -733,10 +756,10 @@ async function renderOpAdmins(){
     const snap = await db.collection(COL_ADMINS).orderBy('createdAt','desc').get();
     if(snap.empty){ el.innerHTML='<p class="sub">管理者が登録されていません</p>'; return; }
     let html = '<div class="section-title">管理者一覧</div>';
-    html += '<table class="op-table"><thead><tr><th>施設名</th><th>ユーザー名</th><th>氏名</th><th>メール</th><th>登録日</th></tr></thead><tbody>';
+    html += '<table class="op-table"><thead><tr><th>施設名</th><th>施設コード</th><th>ユーザー名</th><th>氏名</th><th>メール</th><th>登録日</th></tr></thead><tbody>';
     snap.docs.forEach(d=>{
       const a = d.data();
-      html += `<tr><td>${a.facility||''}</td><td>${a.username||''}</td><td>${a.name||''}</td><td>${a.email||''}</td><td>${dateOnly(a.createdAt)}</td></tr>`;
+      html += `<tr><td>${a.facility||''}</td><td>${a.facilityCode||''}</td><td>${a.username||''}</td><td>${a.name||''}</td><td>${a.email||''}</td><td>${dateOnly(a.createdAt)}</td></tr>`;
     });
     html += '</tbody></table>';
     el.innerHTML = html;
@@ -816,9 +839,8 @@ async function getTicketsByAdmin(adminId){
 }
 
 async function getNextMember(){
-  const snap = await db.collection(COL_TICKETS)
-    .where('adminId','==',currentAdminUid)
-    .get();
+  // サイト全体の通し番号（施設をまたいで一意）
+  const snap = await db.collection(COL_TICKETS).get();
   let max = 0;
   snap.docs.forEach(d=>{
     const m = parseInt(d.data().member);
