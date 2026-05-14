@@ -483,6 +483,13 @@ auth.onAuthStateChanged(async user=>{
     showDeleted = false;
     adminTab('list');
     showScreen('s-admin');
+  } else {
+    currentAdminUid = null;
+    // 運営者セッション・?opの場合はトップに戻さない
+    const cur = document.querySelector('.screen.active');
+    if(!cur || cur.id === 's-admin'){
+      showScreen('s-top');
+    }
   }
 });
 
@@ -580,6 +587,7 @@ async function sendResetEmail(){
   if(!email){ msg.textContent='メールアドレスを入力してください'; msg.style.color='#A32D2D'; return; }
   msg.textContent = '送信中...'; msg.style.color='#888';
   try{
+    auth.languageCode = 'ja';
     await auth.sendPasswordResetEmail(email);
     msg.textContent = 'リセット用メールを送信しました。メールをご確認ください。';
     msg.style.color = '#0F6E56';
