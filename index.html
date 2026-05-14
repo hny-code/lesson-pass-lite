@@ -174,26 +174,8 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
     <div class="pw-wrap"><input type="password" id="admin-login-pw"><button type="button" class="pw-toggle" onclick="togglePw('admin-login-pw',this)"><svg viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div style="text-align:right"><button class="btn btn-primary" onclick="loginAdmin()">ログイン</button></div>
     <div id="admin-login-err" class="err"></div>
-    <button class="link-btn" onclick="showScreen('s-admin-reset')">パスワードをお忘れの方</button>
   </div>
 </div>
-
-<!-- ========== 管理者 パスワードリセット ========== -->
-<div id="s-admin-reset" class="screen">
-  <div class="top-bar">
-    <div>
-      <div style="font-size:15px;font-weight:500">Lesson Pass Lite</div>
-      <div style="font-size:10px;letter-spacing:0.15em;color:#888;text-transform:uppercase;margin-top:2px">パスワードリセット</div>
-    </div>
-    <button class="btn btn-sm" onclick="showScreen('s-admin-login')">戻る</button>
-  </div>
-  <div class="card">
-    <p class="sub" style="margin-bottom:14px">登録したメールアドレスにリセット用のリンクを送信します。</p>
-    <label>メールアドレス</label>
-    <input type="email" id="reset-email" placeholder="例：info@example.com">
-    <div style="text-align:right"><button class="btn btn-primary" onclick="sendResetEmail()">送信する</button></div>
-    <div id="reset-msg" style="font-size:13px;margin-top:6px;min-height:18px"></div>
-  </div>
 
 <!-- ========== 管理者 画面 ========== -->
 <div id="s-admin" class="screen">
@@ -207,6 +189,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
   <div class="tab-bar">
     <button class="tab active" id="tab-list" onclick="adminTab('list')">券一覧</button>
     <button class="tab" id="tab-new" onclick="adminTab('new')">新規発行</button>
+    <button class="tab" id="tab-pw" onclick="adminTab('pw')">PW変更</button>
   </div>
   <div id="admin-list"></div>
   <div id="admin-new" style="display:none">
@@ -222,6 +205,16 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
       <input type="date" id="new-expiry">
       <div style="text-align:right"><button class="btn btn-primary" onclick="issueTicket()">発行する</button></div>
       <div id="new-err" class="err"></div>
+    </div>
+  </div>
+  <div id="admin-pw" style="display:none">
+    <div class="card">
+      <label>新しいパスワード</label>
+      <div class="pw-wrap"><input type="password" id="new-pw1"><button type="button" class="pw-toggle" onclick="togglePw('new-pw1',this)"><svg viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <label>確認</label>
+      <div class="pw-wrap"><input type="password" id="new-pw2"><button type="button" class="pw-toggle" onclick="togglePw('new-pw2',this)"><svg viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div style="text-align:right"><button class="btn btn-primary" onclick="changePw()">変更する</button></div>
+      <div id="pw-msg" style="font-size:13px;margin-top:4px;min-height:18px"></div>
     </div>
   </div>
 </div>
@@ -334,7 +327,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
-try{ firebase.analytics(); }catch(e){ console.warn('analytics error', e); }
+firebase.analytics();
 
 const COL_TICKETS = 'tickets';
 const COL_ADMINS  = 'admins';
@@ -393,14 +386,10 @@ window.addEventListener('load', function(){
 });
 
 // ===== 画面切替 =====
-const ALL_SCREENS = ['s-top','s-admin-register','s-admin-login','s-admin-reset','s-admin','s-user-login','s-user','s-op-login','s-op'];
+const ALL_SCREENS = ['s-top','s-admin-register','s-admin-login','s-admin','s-user-login','s-user','s-op-login','s-op'];
 function showScreen(id){
-  ALL_SCREENS.forEach(s=>{
-    const el = document.getElementById(s);
-    if(el) el.classList.remove('active');
-  });
-  const target = document.getElementById(id);
-  if(target) target.classList.add('active');
+  ALL_SCREENS.forEach(s=>document.getElementById(s).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
 }
 
@@ -478,20 +467,15 @@ async function loginAdmin(){
 auth.onAuthStateChanged(async user=>{
   if(user){
     currentAdminUid = user.uid;
-    showScreen('s-admin');
+    const doc = await db.collection(COL_ADMINS).doc(user.uid).get();
+    const adminData = doc.exists ? doc.data() : {};
+    const facility = adminData.facility || 'Lesson Pass Lite';
+    const adminName = adminData.name || '';
+    document.getElementById('admin-facility-name').textContent = facility;
+    document.getElementById('admin-label').textContent = adminName ? adminName+'　管理画面' : '管理画面';
     showDeleted = false;
     adminTab('list');
-    try{
-      const doc = await db.collection(COL_ADMINS).doc(user.uid).get();
-      const adminData = doc.exists ? doc.data() : {};
-      document.getElementById('admin-facility-name').textContent = adminData.facility || 'Lesson Pass Lite';
-      document.getElementById('admin-label').textContent = adminData.name ? adminData.name+'　管理画面' : '管理画面';
-    }catch(e){ console.warn('admin info error', e); }
-  } else {
-    currentAdminUid = null;
-    if(!location.search.includes('op')){
-      showScreen('s-top');
-    }
+    showScreen('s-admin');
   }
 });
 
@@ -503,7 +487,7 @@ function logoutAdmin(){
 
 // ===== 管理者 タブ =====
 function adminTab(tab){
-  ['list','new'].forEach(t=>{
+  ['list','new','pw'].forEach(t=>{
     document.getElementById('admin-'+t).style.display = t===tab?'block':'none';
     document.getElementById('tab-'+t).classList.toggle('active',t===tab);
   });
@@ -582,22 +566,21 @@ async function issueTicket(){
   }
 }
 
-// ===== パスワードリセット =====
-async function sendResetEmail(){
-  const email = document.getElementById('reset-email').value.trim();
-  const msg   = document.getElementById('reset-msg');
-  if(!email){ msg.textContent='メールアドレスを入力してください'; msg.style.color='#A32D2D'; return; }
-  msg.textContent = '送信中...'; msg.style.color='#888';
+// ===== PW変更 =====
+async function changePw(){
+  const p1  = document.getElementById('new-pw1').value;
+  const p2  = document.getElementById('new-pw2').value;
+  const msg = document.getElementById('pw-msg');
+  if(!p1){ msg.textContent='パスワードを入力してください'; msg.style.color='#A32D2D'; return; }
+  if(p1!==p2){ msg.textContent='パスワードが一致しません'; msg.style.color='#A32D2D'; return; }
+  if(p1.length<6){ msg.textContent='パスワードは6文字以上で設定してください'; msg.style.color='#A32D2D'; return; }
   try{
-    auth.languageCode = 'ja';
-    await auth.sendPasswordResetEmail(email);
-    msg.textContent = 'リセット用メールを送信しました。メールをご確認ください。';
-    msg.style.color = '#0F6E56';
-    document.getElementById('reset-email').value = '';
+    await auth.currentUser.updatePassword(p1);
+    msg.textContent = '変更しました'; msg.style.color='#0F6E56';
+    document.getElementById('new-pw1').value='';
+    document.getElementById('new-pw2').value='';
   }catch(e){
-    if(e.code==='auth/user-not-found') msg.textContent='このメールアドレスは登録されていません';
-    else msg.textContent = 'エラーが発生しました：'+e.message;
-    msg.style.color = '#A32D2D';
+    msg.textContent = 'エラー：再ログインが必要な場合があります'; msg.style.color='#A32D2D';
   }
 }
 
@@ -1017,6 +1000,12 @@ function toJSTString(date){
 
 // ===== 起動時チェック =====
 window.addEventListener('load', function(){
+  // 運営者セッション復元
+  if(localStorage.getItem(OP_SESSION)==='true'){
+    // トップのまま（自動遷移はしない。手動ログインを要求）
+    localStorage.removeItem(OP_SESSION);
+  }
+  // 運営者画面アクセス用：URLに ?op をつけるとログイン画面へ
   if(location.search.includes('op')){
     showScreen('s-op-login');
   }
