@@ -81,11 +81,37 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
 .section-title{font-size:13px;font-weight:600;color:#666;letter-spacing:0.08em;text-transform:uppercase;margin:1.5rem 0 0.75rem}
 /* 目玉アイコン SVG */
 .pw-toggle svg{width:18px;height:18px;display:block}
+/* カスタムモーダル */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal-box{background:#fff;border-radius:14px;padding:1.5rem 1.25rem;width:90%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.18)}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:12px;color:#1a1a1a}
+.modal-body{font-size:14px;color:#444;line-height:1.7;margin-bottom:14px}
+.modal-copy-area{background:#f5f5f3;border:0.5px solid #e0e0e0;border-radius:8px;padding:10px 12px;font-size:13px;color:#1a1a1a;line-height:1.8;margin-bottom:14px;user-select:all;cursor:text;word-break:break-all}
+.modal-copy-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:#1D9E75;background:none;border:0.5px solid #1D9E75;border-radius:8px;padding:6px 14px;cursor:pointer;margin-bottom:14px}
+.modal-copy-btn:hover{background:#E1F5EE}
+.modal-footer{text-align:right}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="wrap">
+
+<!-- カスタムモーダル -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <textarea class="modal-copy-area" id="modal-copy-area" style="display:none;resize:none;width:100%;border:0.5px solid #e0e0e0;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.8;background:#f5f5f3;color:#1a1a1a;font-family:inherit" rows="3" readonly></textarea>
+    <button class="modal-copy-btn" id="modal-copy-btn" style="display:none" onclick="copyModalText()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      コピーする
+    </button>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-sm" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+</div>
 
 <!-- ========== トップ（役割選択） ========== -->
 <div id="s-top" class="screen active">
@@ -514,13 +540,13 @@ async function issueTicket(){
       expiry:  expiry+' 23:59',
       deleted: '', deletedAt: ''
     });
-    document.getElementById('new-name').value = '';
+    document.getElementById('new-name').value  = '';
     document.getElementById('new-expiry').value = '';
     errEl.textContent = '';
 
-    const url = location.href;
-    alert(`発行が完了しました。\n\n利用者にお伝えください：\n━━━━━━━━━━━━━━\nURL：${url}\n会員番号：${member}\n━━━━━━━━━━━━━━`);
-    adminTab('list');
+    const url      = location.href;
+    const copyText = `URL：${url}\n会員番号：${member}`;
+    showModal('発行が完了しました', '利用者に以下をお知らせください：', copyText, ()=>adminTab('list'));
   }catch(e){
     errEl.textContent = '通信エラーが発生しました。';
   }
@@ -796,6 +822,49 @@ async function getNextMember(){
 }
 
 // ===== ユーティリティ =====
+function showModal(title, body, copyText, onClose){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const copyArea = document.getElementById('modal-copy-area');
+  const copyBtn  = document.getElementById('modal-copy-btn');
+  if(copyText){
+    copyArea.value         = copyText;
+    copyArea.style.display = 'block';
+    copyBtn.style.display  = 'flex';
+    copyBtn.innerHTML      = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> コピーする`;
+    copyBtn.style.color       = '#1D9E75';
+    copyBtn.style.borderColor = '#1D9E75';
+  } else {
+    copyArea.style.display = 'none';
+    copyBtn.style.display  = 'none';
+  }
+  modalOnClose = onClose || null;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+let modalOnClose = null;
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('active');
+  if(modalOnClose){ modalOnClose(); modalOnClose=null; }
+}
+async function copyModalText(){
+  const area = document.getElementById('modal-copy-area');
+  area.select();
+  area.setSelectionRange(0, 99999);
+  try{
+    await navigator.clipboard.writeText(area.value);
+  }catch(e){
+    document.execCommand('copy');
+  }
+  const btn = document.getElementById('modal-copy-btn');
+  btn.innerHTML     = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> コピーしました`;
+  btn.style.color       = '#0F6E56';
+  btn.style.borderColor = '#0F6E56';
+  setTimeout(()=>{
+    btn.innerHTML         = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> コピーする`;
+    btn.style.color       = '#1D9E75';
+    btn.style.borderColor = '#1D9E75';
+  },2000);
+}
 function togglePw(inputId, btn){
   const input = document.getElementById(inputId);
   const show  = input.type === 'password';
