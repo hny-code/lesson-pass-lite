@@ -395,8 +395,12 @@ window.addEventListener('load', function(){
 // ===== 画面切替 =====
 const ALL_SCREENS = ['s-top','s-admin-register','s-admin-login','s-admin-reset','s-admin','s-user-login','s-user','s-op-login','s-op'];
 function showScreen(id){
-  ALL_SCREENS.forEach(s=>document.getElementById(s).classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  ALL_SCREENS.forEach(s=>{
+    const el = document.getElementById(s);
+    if(el) el.classList.remove('active');
+  });
+  const target = document.getElementById(id);
+  if(target) target.classList.add('active');
   window.scrollTo(0,0);
 }
 
