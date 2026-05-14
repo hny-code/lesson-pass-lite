@@ -334,7 +334,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
-firebase.analytics();
+try{ firebase.analytics(); }catch(e){ console.warn('analytics error', e); }
 
 const COL_TICKETS = 'tickets';
 const COL_ADMINS  = 'admins';
@@ -483,8 +483,12 @@ auth.onAuthStateChanged(async user=>{
       document.getElementById('admin-facility-name').textContent = adminData.facility || 'Lesson Pass Lite';
       document.getElementById('admin-label').textContent = adminData.name ? adminData.name+'　管理画面' : '管理画面';
     }catch(e){ console.warn('admin info error', e); }
+  } else {
+    currentAdminUid = null;
+    if(!location.search.includes('op')){
+      showScreen('s-top');
+    }
   }
-  // 未ログイン時はs-topがデフォルトで表示済み
 });
 
 function logoutAdmin(){
