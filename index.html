@@ -839,8 +839,10 @@ async function getTicketsByAdmin(adminId){
 }
 
 async function getNextMember(){
-  // サイト全体の通し番号（施設をまたいで一意）
-  const snap = await db.collection(COL_TICKETS).get();
+  // 施設ごとの連番
+  const snap = await db.collection(COL_TICKETS)
+    .where('adminId','==',currentAdminUid)
+    .get();
   let max = 0;
   snap.docs.forEach(d=>{
     const m = parseInt(d.data().member);
