@@ -194,6 +194,7 @@ input:focus,select:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,1
     <div style="text-align:right"><button class="btn btn-primary" onclick="sendResetEmail()">送信する</button></div>
     <div id="reset-msg" style="font-size:13px;margin-top:6px;min-height:18px"></div>
   </div>
+</div>
 
 <!-- ========== 管理者 画面 ========== -->
 <div id="s-admin" class="screen">
@@ -406,8 +407,8 @@ window.addEventListener('load', function(){
 // ===== 画面切替 =====
 const ALL_SCREENS = ['s-top','s-admin-register','s-admin-login','s-admin-reset','s-admin','s-user-login','s-user','s-op-login','s-op'];
 function showScreen(id){
-  ALL_SCREENS.forEach(s=>document.getElementById(s).classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  ALL_SCREENS.forEach(s=>{ const el=document.getElementById(s); if(el) el.classList.remove('active'); });
+  const t=document.getElementById(id); if(t) t.classList.add('active');
   window.scrollTo(0,0);
 }
 
