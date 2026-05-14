@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson Pass Lite</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f5f5f3;font-family:-apple-system,sans-serif;font-size:15px}
+.wrap{max-width:640px;margin:0 auto;padding:2rem 1rem}
+.screen{display:none}
+.screen.active{display:block}
+.logo{text-align:center;margin-bottom:2rem;font-size:18px;font-weight:500}
+.card{background:#fff;border:0.5px solid #e0e0e0;border-radius:12px;padding:1.25rem;margin-bottom:12px}
+.btn{display:block;width:100%;padding:13px;border-radius:10px;border:0.5px solid #1D9E75;background:#1D9E75;color:#fff;font-size:15px;font-weight:500;cursor:pointer;margin-bottom:10px}
+.btn.outline{background:#fff;color:#1D9E75}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="s-top" class="screen active">
+    <div class="logo">Lesson Pass Lite</div>
+    <div class="card">
+      <button class="btn" onclick="show('s-login')">管理者ログイン</button>
+      <button class="btn outline" onclick="show('s-user')">利用者ログイン</button>
+    </div>
+  </div>
+  <div id="s-login" class="screen">
+    <div class="logo">管理者ログイン</div>
+    <div class="card">
+      <button class="btn" onclick="show('s-top')">戻る</button>
+    </div>
+  </div>
+  <div id="s-user" class="screen">
+    <div class="logo">利用者ログイン</div>
+    <div class="card">
+      <button class="btn" onclick="show('s-top')">戻る</button>
+    </div>
+  </div>
+</div>
+<script>
+function show(id){
+  ['s-top','s-login','s-user'].forEach(s=>{
+    const el = document.getElementById(s);
+    if(el) el.classList.remove('active');
+  });
+  const t = document.getElementById(id);
+  if(t) t.classList.add('active');
+}
+</script>
+</body>
+</html>
